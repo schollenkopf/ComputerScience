@@ -1,0 +1,119 @@
+// Open the file that defines the type "expr" we shall use as AST
+%{
+open CalculatorTypesAST
+%}
+
+// Declare the tokens (terminal symbols)
+%token <int> NUM
+%token <string>  NAME
+
+%token TIMES DIV PLUS MINUS POW LPAR RPAR EOF IFSTART IFEND DOSTART DOEND SCOLUMN DEFINE SKIP TRUE FALSE OR AND OROR ANDAND NOT NOTEQUAL EQUAL BIGGER SMALLER LSPAR RSPAR SMALLEREQUAL BIGGEREQUAL ARROW 
+// NOTE: the actual formats of these tokens are defined in the lexer file
+//       as regular expressions
+
+// Specify precedence and associativity of operators
+// Precedence is given by the order (from low to high)
+
+
+// We declare the initial non-terminal symbol
+%start start
+
+// We specify the return type of each of then non-terminal symbols
+%type <command> start
+%type <command> command0
+%type <command> command1
+
+%type <guardedC> guardedC
+%type <guardedC> guardedC1
+%type <boolean> boolean0
+%type <boolean> boolean1
+%type <boolean> boolean2
+%type <boolean> boolean3
+%type <expr> expression0
+%type <expr> expression1
+%type <expr> expression2
+%type <expr> expression3
+%type <expr> Name
+// Grammar productions
+%%
+
+// The first production in "formal" notation is
+// start -> expression
+// here written:
+start: command0 EOF             { $1 }
+
+// Note that we need to insert an End-Of-File (EOF)
+// The code annotation { $1 } specifies that parsing with this production
+// returns whatever parsing the expression returns: $1 is the result of parsing
+// the first component of the production (i.e. expression)
+
+// The productions for expressions are like in the grammar we saw in class
+// written in the yacc format:
+expression0:
+  | expression0 PLUS expression1    { PlusExpr($1,$3) }
+  | expression0 MINUS expression1   { MinusExpr($1,$3) }
+  | expression1                     { $1 }
+expression1:
+  | expression1 TIMES expression2   { TimesExpr($1,$3) }
+  | expression1 DIV expression2     { DivExpr($1,$3) }
+  | expression2                     { $1 }
+expression2:
+  | expression3 POW expression2     { PowExpr($1,$3) } 
+  | expression3                     { $1 }
+expression3:
+  | NUM                            { Num($1) }
+  | MINUS expression3              { UMinusExpr($2) }
+  | PLUS expression3            { UPlusExpr($2) }
+  | LPAR expression0 RPAR          { $2 }
+  | Name                          {$1}
+
+Name:
+  | NAME                          {Name($1)}
+  | NAME LSPAR expression0 RSPAR  {NAMEArray($1,$3)}
+
+
+boolean0:
+  | boolean0 OR boolean1           {Or($1,$3)}
+  | boolean0 OROR boolean1           {Oror($1,$3)}
+  | boolean1                        {$1}
+boolean1:
+  | boolean1 AND boolean2           {And($1,$3)}
+  | boolean1 ANDAND boolean2           {Andand($1,$3)}
+  | boolean2                         {$1}
+boolean2:
+  | NOT boolean2                      {Not($2)}
+  | boolean3                          {$1}
+boolean3:
+  | TRUE                              {Boolean(true)}
+  | FALSE                             {Boolean(false)}
+  | expression0 BIGGER expression0    {GREATER($1,$3)}
+  | expression0 EQUAL expression0    {Equal($1,$3)}
+  | expression0 NOTEQUAL expression0    {NOTEqual($1,$3)}
+  | expression0 SMALLER expression0    {LESS($1,$3)}
+  | expression0 SMALLEREQUAL expression0    {LESSEqual($1,$3)}
+  | expression0 BIGGEREQUAL expression0    {GREATEREqual($1,$3)}
+  | LPAR boolean0 RPAR                {$2}
+  
+command0:
+  | command1 SCOLUMN command0         {TWOcommand($1,$3)}
+  | command1                          {$1}
+command1:
+  | Name DEFINE expression0           {INIT($1,$3)}
+  | IFSTART guardedC IFEND            {IFFI ($2)}
+  | DOSTART guardedC DOEND            {DOOD ($2)}
+  | SKIP                              {Skip }
+
+
+guardedC:
+  | guardedC1 LSPAR RSPAR guardedC      {TWOguardedC($1,$4)}
+  | guardedC1                         {$1}
+guardedC1:
+  | boolean0 ARROW command0           {Follows($1,$3)}
+
+
+// Again, the code annotation specifies the result of parsing
+// For example { TimesExpr($1,$3) } specifies that parsing with the production
+// returns the value TimesExpr($1,$3), where $i is the result of parsing
+// component i in the production (in this case the lhs and rhs operands)
+
+%%
