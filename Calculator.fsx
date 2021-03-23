@@ -101,16 +101,18 @@ let rec getFirst n =
 let rec toMem d map =
     match d with
     |TWOcommand(a,b) -> toMem a (toMem b map)
-    |INIT(NAMEArray(a,c),b) -> let st = a + "["+(string(c))+"]"
-                               Map.add (st) b map
-    |INIT(Name(a),b) -> Map.add a b map 
-    
-
+    |INIT(NAMEArray(a,c),b) -> let st = a + "["+(string(get_int(eval_expr c map)))+"]"
+                               Map.add (st) (get_int(eval_expr b map)) map
+    |INIT(Name(a),b) -> Map.add a (get_int(eval_expr b map)) map 
+    |_ -> failwith "invalid initialization"
 
 // We implement here the function that interacts with the user
 let rec compute n =
+    printfn "You have %i tries left"(n)
     if n = 0 then
+
         printfn "Bye bye"
+    
     else
        
         for arg in fsi.CommandLineArgs do
@@ -131,16 +133,23 @@ let rec compute n =
                          compute n
                      with err -> compute (n-1)
                  else if arg="Calculator.fsx" then printfn("\n")
-                      else 
-                      printfn("Interpreting")
-                      printf "Enter guarded command code: "
-                      try
-                         let init = parse (Console.ReadLine())
-                         let e = parse (Console.ReadLine())
-                         let p = getFirst (edgesCD e (Node("qstart")) (Node("qend")) 1 (Boolean(false)))
-                         let r = step_exe (p) (p) (toMem init Map.empty) "qstart"
-                         printfn  (getFirst r)+("\n")+"%A" (snd r)
-                      with err -> compute (n-1)
+                      else if arg="Interpreter" then
+                              printfn("Interpreting")
+                              
+                              try
+                                 printf "Initialize variables: "
+                                 let init = parse (Console.ReadLine())
+                                 printf "Enter guarded command code: "
+                                 let e = parse (Console.ReadLine())
+                                 let p = getFirst (edgesCD e (Node("qstart")) (Node("qend")) 1 (Boolean(false)))
+                                 let r = step_exe (p) (p) (toMem init Map.empty) "qstart" 0
+                                 printfn  "%s" (fst r)
+                                
+                                 printfn  "%A" (snd r)
+                              with err -> compute (n-1)
+                           else printfn("no")
+                            
+                           
 
 //add map input
 
