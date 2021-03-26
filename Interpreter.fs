@@ -113,6 +113,7 @@ let defined action mem =
                               |_ -> Undefined 
     |Saction         -> Intertrue
     |Baction(b)         ->  eval_bool b mem
+    |_ -> failwith "this action doesnt exist"
 
 let rec change_memory action mem = 
     match action with 
@@ -121,17 +122,36 @@ let rec change_memory action mem =
                                       | Number(a1) -> Map.add st a1 mem
                                       |UndefinedExpr -> mem
     |Assignment(Name (a),b) -> match eval_expr b mem with
-                        | Number(a1) -> Map.add a a1 mem
-                        |UndefinedExpr -> mem
+                                 | Number(a1) -> Map.add a a1 mem
+                                 |UndefinedExpr -> mem
     |Saction         -> mem
     |Baction(b)         -> mem
+    |_ -> failwith "this action doesnt exist"
 
-let rec step_exe all_edges edges mem state= 
+let rec step_exe all_edges edges mem state n= 
     match edges with
     |[] -> if state = "qend" then ("Finished execution",mem) else ("Interpreter stuck in node " + state, mem)  
-    |Edge(Node(q1),a,Node(q2))::xs when q1=state && ((defined a mem) = Intertrue) ->  step_exe all_edges all_edges (change_memory a mem) q2  
-    |_ :: tail -> step_exe all_edges tail mem state 
+    |Edge(Node(q1),a,Node(q2))::xs when q1=state && ((defined a mem) = Intertrue) ->  printfn "Cycle: %i" (n)
+                                                                                      printfn "%s" (state) 
+                                                                                      printfn "%A" (mem) 
+                                                                                      printfn "\n"
+                                                                                      step_exe all_edges all_edges (change_memory a mem) q2  (n+1)
+    |_ :: tail -> step_exe all_edges tail mem state n
 
 
 
+let rec step_exeND all_edges edges mem state n options=
+    match edges with
+    |[] when ((List.length options) = 0) -> if state = "qend" then ("Finished execution",mem) else ("Interpreter stuck in node " + state, mem) 
+    |[] ->   let o = new Random()
+             let r = o.Next(0,(List.length options))
+             let randomoption = options.Item(r)
+             printfn "Cycle: %i" (n)
+             printfn "%s" (state) 
+             printfn "%A" (mem) 
+             printfn "\n"
+             step_exeND all_edges all_edges (change_memory (fst randomoption) mem) (snd randomoption)  (n+1) ([])
+    |Edge(Node(q1),a,Node(q2))::xs when q1=state && ((defined a mem) = Intertrue) ->  step_exeND all_edges xs mem state n ((a,q2)::options)
+                                                                                      
+    |_ :: tail -> step_exeND all_edges tail mem state n options
 
