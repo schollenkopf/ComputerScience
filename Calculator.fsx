@@ -21,6 +21,8 @@ open Compiler
 #load "Interpreter.fs"
 open Interpreter
 open CompilerD
+#load "sign.fs"
+open sign
 
 
 
@@ -93,6 +95,31 @@ let parse input =
     // return the result of parsing (i.e. value of type "expr")
     res
 
+let toSign i =
+    if (i>0) then [Plus]
+    else if (i=0) then [Zero]
+          else [Minus]
+
+
+let getElement a = 
+    match a with
+    |x::xs -> x
+
+let rec toMemSign d map =
+    match d with
+    |TWOcommand(a,b) -> toMemSign a (toMemSign b map)
+    |INIT(NAMEArray(a,c),b) -> if (Map.containsKey a (snd(map)) ) then (fst(map),(Map.add (a) (Set.union (Map.find a (snd(map))) ((Set.ofList (toSign(get_int(eval_expr b Map.empty))) ))) (snd(map))))
+                               else (fst(map),(Map.add a (Set.ofList (toSign(get_int(eval_expr b Map.empty))) ) (snd(map))))
+    |INIT(Name(a),b) -> ((Map.add a (getElement (toSign(get_int(eval_expr b Map.empty))) ) (fst(map))),(snd(map)))
+    |_ -> failwith "invalid sign initialization"
+
+
+
+let rec convertEdge e =
+    match e with
+    |Edge(Node(a),action,Node(b))::xs -> (a,action,b)::convertEdge xs
+    |[] -> []
+       
 let rec getFirst n = 
     match n with
     |[] -> []
@@ -161,8 +188,18 @@ let rec compute n =
                                         
                                          printfn  "%A" (snd r)
                                    with err -> compute (n-1)
-                                else printfn("no")
-
+                                else if arg="Sign-Analysis" then
+                                      printfn("Sign Analysis started")
+                                      try
+                                         printf "Initialize variables: "
+                                         let init = parse (Console.ReadLine())
+                                         printf "Enter guarded command code: "
+                                         let e = parse (Console.ReadLine())
+                                         let p = edgesC e (Node("qstart")) (Node("qend")) 1 
+                                         sign_main "qstart" (convertEdge p) (Set.ofList [toMemSign init (Map.empty,Map.empty)] )
+                                       with err ->  printfn "%s" err.Message
+                                                    compute (n-1)
+                                      else printfn "nono"
 //add map input
 
 
